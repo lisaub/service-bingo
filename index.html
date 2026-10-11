@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Service-Bingo</title>
+<meta name="description" content="Begriffe sammeln für das Service-Bingo am 12. Dezember in Göttingen.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..900,100&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --night:#13233A;
+    --night-deep:#0C1727;
+    --paper:#FFF6E4;
+    --paper-dim:#EADCC2;
+    --ball:#F2A541;
+    --stamp:#D7263D;
+    --ink:#1A1A1A;
+    --ok:#3FA66B;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    min-height:100dvh;
+    font-family:"Nunito Sans",system-ui,sans-serif;
+    color:var(--paper);
+    background:
+      radial-gradient(2px 2px at 12% 18%, rgba(255,255,255,.55) 50%, transparent 52%),
+      radial-gradient(1.5px 1.5px at 78% 9%, rgba(255,255,255,.45) 50%, transparent 52%),
+      radial-gradient(2px 2px at 64% 31%, rgba(255,255,255,.35) 50%, transparent 52%),
+      radial-gradient(1.5px 1.5px at 28% 44%, rgba(255,255,255,.4) 50%, transparent 52%),
+      radial-gradient(2.5px 2.5px at 88% 52%, rgba(255,255,255,.3) 50%, transparent 52%),
+      radial-gradient(1.5px 1.5px at 6% 70%, rgba(255,255,255,.4) 50%, transparent 52%),
+      radial-gradient(2px 2px at 52% 84%, rgba(255,255,255,.3) 50%, transparent 52%),
+      radial-gradient(1.5px 1.5px at 92% 90%, rgba(255,255,255,.4) 50%, transparent 52%),
+      linear-gradient(180deg,var(--night) 0%,var(--night-deep) 100%);
+    background-attachment:fixed;
+  }
+  main{
+    max-width:520px;
+    margin:0 auto;
+    padding:28px 16px 64px;
+  }
+
+  /* Kopf: Bingo-Kugeln */
+  .balls{display:flex;gap:8px;margin-bottom:14px}
+  .ball{
+    width:38px;height:38px;border-radius:50%;
+    display:grid;place-items:center;
+    background:radial-gradient(circle at 35% 30%, #fff 0, var(--ball) 28%, #C77A14 100%);
+    color:var(--ink);
+    font-family:"Fraunces",serif;font-weight:800;font-size:19px;
+    box-shadow:0 3px 0 rgba(0,0,0,.35), inset 0 -2px 4px rgba(0,0,0,.15);
+  }
+  .ball:nth-child(2){background:radial-gradient(circle at 35% 30%, #fff 0, #E9EEF5 28%, #9FB0C6 100%)}
+  .ball:nth-child(3){background:radial-gradient(circle at 35% 30%, #fff 0, var(--stamp) 28%, #8C0F1F 100%);color:#fff}
+  .ball:nth-child(4){background:radial-gradient(circle at 35% 30%, #fff 0, #5FA8D3 28%, #1F5F85 100%);color:#fff}
+  .ball:nth-child(5){background:radial-gradient(circle at 35% 30%, #fff 0, var(--ok) 28%, #1E6B3E 100%);color:#fff}
+
+  h1{
+    font-family:"Fraunces",serif;
+    font-variation-settings:"SOFT" 100;
+    font-weight:900;font-size:clamp(38px,11vw,52px);
+    line-height:.95;letter-spacing:-.01em;margin:0 0 6px;
+  }
+  .sub{margin:0 0 26px;color:var(--paper-dim);font-size:16px;line-height:1.45}
+
+  /* Eingabekarte */
+  .card{
+    background:var(--paper);color:var(--ink);
+    border-radius:var(--radius);
+    padding:18px 16px 16px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  .card h2{font-family:"Fraunces",serif;font-weight:700;font-size:21px;margin:0 0 12px}
+  label{display:block;font-weight:600;font-size:14px;margin:0 0 6px}
+  .field{margin-bottom:12px}
+  input[type=text]{
+    width:100%;font:inherit;font-size:17px;
+    padding:12px 13px;border:2px solid #CBBFA6;border-radius:10px;
+    background:#fff;color:var(--ink);
+  }
+  input[type=text]:focus{outline:none;border-color:var(--night);box-shadow:0 0 0 3px rgba(19,35,58,.18)}
+  input::placeholder{color:#9A8E78}
+  .hint{font-size:13px;color:#6B6252;margin:6px 0 0;line-height:1.4}
+
+  .check{
+    display:none;margin:10px 0 0;padding:10px 12px;border-radius:10px;
+    font-size:14px;line-height:1.45;
+  }
+  .check.show{display:block}
+  .check.dup{background:#FBE1E4;border:1px solid var(--stamp);color:#7A0F1E}
+  .check.near{background:#FFF0CF;border:1px solid var(--ball);color:#5A3E07}
+  .check.free{background:#DFF3E6;border:1px solid var(--ok);color:#164C2C}
+  .check ul{margin:6px 0 0;padding-left:18px}
+  .check li{margin:2px 0}
+
+  .row{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  button{
+    font:inherit;font-weight:700;font-size:16px;
+    padding:12px 18px;border:0;border-radius:10px;cursor:pointer;
+  }
+  .primary{background:var(--night);color:var(--paper);flex:1 1 auto}
+  .primary:disabled{opacity:.45;cursor:not-allowed}
+  .ghost{background:transparent;color:#7A0F1E;text-decoration:underline;padding:12px 6px}
+  button:focus-visible,input:focus-visible{outline:3px solid var(--ball);outline-offset:2px}
+
+  .toast{
+    margin-top:12px;padding:10px 12px;border-radius:10px;
+    background:var(--night);color:var(--paper);font-size:14px;display:none;
+  }
+  .toast.show{display:block}
+
+  /* Topf */
+  .pot{margin-top:34px}
+  .pot-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+  .count{
+    width:64px;height:64px;border-radius:50%;flex:none;
+    display:grid;place-items:center;
+    background:radial-gradient(circle at 35% 30%, #fff 0, var(--ball) 28%, #C77A14 100%);
+    color:var(--ink);font-family:"Fraunces",serif;font-weight:900;font-size:26px;
+    box-shadow:0 4px 0 rgba(0,0,0,.35), inset 0 -3px 6px rgba(0,0,0,.15);
+  }
+  .pot-head p{margin:0;line-height:1.35}
+  .pot-head strong{display:block;font-family:"Fraunces",serif;font-size:19px;font-weight:700}
+  .pot-head span{color:var(--paper-dim);font-size:14px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0}
+  .chip{
+    background:var(--paper);color:var(--ink);
+    padding:7px 11px;border-radius:999px;font-size:15px;line-height:1.3;
+    border:1.5px solid var(--paper-dim);
+  }
+  .chip.phrase{border-radius:10px;border-style:dashed}
+  .chip.new{background:#FFF0CF;border-color:var(--ball)}
+  .empty{color:var(--paper-dim);font-size:15px}
+
+  .setup{
+    background:#FFF0CF;color:#5A3E07;border-radius:var(--radius);
+    padding:14px 16px;font-size:14px;line-height:1.5;margin-bottom:16px;
+  }
+  .setup code{background:rgba(0,0,0,.08);padding:1px 5px;border-radius:4px}
+
+  footer{margin-top:40px;color:var(--paper-dim);font-size:13px;line-height:1.5}
+
+  @media (prefers-reduced-motion:no-preference){
+    .chip.new{animation:pop .35s ease-out}
+    @keyframes pop{from{transform:scale(.85);opacity:0}to{transform:none;opacity:1}}
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="balls" aria-hidden="true">
+    <div class="ball">B</div><div class="ball">I</div><div class="ball">N</div><div class="ball">G</div><div class="ball">O</div>
+  </div>
+  <h1>Service-Bingo</h1>
+  <p class="sub">Göttingen, 12. Dezember. Wirf alles in den Topf, was uns damals verfolgt hat: Sprüche, Wörter, Running Gags. Daraus werden am Abend die Bingo-Karten.</p>
+
+  <div class="setup" id="setup" hidden>
+    Noch nicht verbunden. In <code>index.html</code> oben bei <code>CONFIG</code> die Supabase-URL und den anon-Key eintragen (siehe README).
+  </div>
+
+  <section class="card" aria-labelledby="form-title">
+    <h2 id="form-title">Begriff eingeben</h2>
+    <form id="form" novalidate>
+      <div class="field">
+        <label for="text">Wort, Spruch oder Zitat</label>
+        <input type="text" id="text" name="text" maxlength="120" autocomplete="off" placeholder="Was wurde damals ständig gesagt?" required>
+        <p class="hint">Einzelne Wörter und ganze Sätze gehen beide. Jeder Eintrag landet als eigenes Bingo-Feld.</p>
+        <div class="check" id="check" aria-live="polite"></div>
+      </div>
+      <div class="field">
+        <label for="author">Dein Name (optional)</label>
+        <input type="text" id="author" name="author" maxlength="40" autocomplete="given-name" placeholder="Damit wir wissen, wer's war">
+      </div>
+      <div class="row">
+        <button type="submit" class="primary" id="save">In den Topf</button>
+        <button type="button" class="ghost" id="force" hidden>Trotzdem speichern</button>
+      </div>
+      <div class="toast" id="toast"></div>
+    </form>
+  </section>
+
+  <section class="pot" aria-labelledby="pot-title">
+    <div class="pot-head">
+      <div class="count" id="count">–</div>
+      <p><strong id="pot-title">Begriffe im Topf</strong><span id="pot-sub">Wird geladen …</span></p>
+    </div>
+    <ul class="chips" id="chips"></ul>
+    <p class="empty" id="empty" hidden>Noch leer. Du machst den Anfang.</p>
+  </section>
+
+  <footer>Dubletten werden beim Eingeben abgeglichen (Groß/Klein, Umlaute, Tippfehler, Artikel). Ab drei Wörtern zählt ein Satz als eigener Eintrag, auch wenn ein Wort daraus schon drin ist.</footer>
+</main>
+
+<script>
+/* ===== CONFIG: hier Supabase-Daten eintragen (Project Settings → API) ===== */
+const CONFIG = {
+  url: "https://xxdwdxrgaeyjhygghrlx.supabase.co",
+  anonKey: "sb_publishable_4fCT1QK_ucXV4Rxb8XHfVA_MDVEcxEL"
+};
+/* ======================================================================== */
+
+const $ = (id) => document.getElementById(id);
+const els = { form:$("form"), text:$("text"), author:$("author"), check:$("check"),
+  save:$("save"), force:$("force"), toast:$("toast"), count:$("count"),
+  chips:$("chips"), empty:$("empty"), potSub:$("pot-sub"), setup:$("setup") };
+
+const configured = !CONFIG.url.includes("DEIN-PROJEKT") && !CONFIG.anonKey.includes("DEIN-ANON");
+if (!configured) { els.setup.hidden = false; els.save.disabled = true; }
+const sb = configured ? supabase.createClient(CONFIG.url, CONFIG.anonKey) : null;
+
+/* ---------- Normalisierung ---------- */
+const ARTICLES = new Set(["der","die","das","den","dem","des","ein","eine","einen","einem","einer","the","a","an"]);
+
+function normalize(s){
+  return s.toLowerCase().trim()
+    .replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9\s-]/g," ")
+    .replace(/-/g," ")
+    .replace(/\s+/g," ").trim();
+}
+function core(norm){
+  const w = norm.split(" ").filter(Boolean);
+  if (w.length >= 2 && w.length <= 3 && ARTICLES.has(w[0])) return w.slice(1).join(" ");
+  return w.join(" ");
+}
+function analyze(raw){
+  const n = core(normalize(raw));
+  const words = n ? n.split(" ") : [];
+  return { norm:n, words, wordCount:words.length, kind: words.length >= 3 ? "phrase" : "term" };
+}
+
+/* ---------- Ähnlichkeit ---------- */
+function lev(a,b){
+  if (a===b) return 0;
+  const m=a.length, n=b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({length:n+1},(_,i)=>i), cur = new Array(n+1);
+  for (let i=1;i<=m;i++){
+    cur[0]=i;
+    for (let j=1;j<=n;j++){
+      cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    }
+    [prev,cur]=[cur,prev];
+  }
+  return prev[n];
+}
+function ratio(a,b){ const L=Math.max(a.length,b.length); return L? 1-lev(a,b)/L : 1; }
+function jaccard(A,B){ const a=new Set(A), b=new Set(B); let i=0; for (const x of a) if (b.has(x)) i++; return i/(a.size+b.size-i||1); }
+function stem(w){ return w.replace(/(en|er|es|em|e|n|s)$/,""); }
+
+function findMatches(cand, pool){
+  const exact=[], near=[];
+  for (const e of pool){
+    if (e.norm === cand.norm){ exact.push(e); continue; }
+    if (cand.kind === "term" && e.kind === "term"){
+      const L = Math.max(cand.norm.length, e.norm.length);
+      const tol = L >= 8 ? 2 : L >= 5 ? 1 : 0;
+      if (lev(cand.norm, e.norm) <= tol) { near.push(e); continue; }
+      const cw = cand.words.map(stem), ew = e.words.map(stem);
+      if (cw.every(w=>ew.includes(w)) || ew.every(w=>cw.includes(w))) { near.push(e); continue; }
+    } else if (cand.kind === "phrase" && e.kind === "phrase"){
+      if (ratio(cand.norm, e.norm) >= 0.8 || jaccard(cand.words.map(stem), e.words.map(stem)) >= 0.7) near.push(e);
+    }
+  }
+  return { exact, near };
+}
+
+/* ---------- Daten ---------- */
+let pool = [];
+let forceMode = false;
+let newIds = new Set();
+
+async function load(){
+  if (!sb) { els.potSub.textContent = "Nicht verbunden."; return; }
+  const { data, error } = await sb.from("entries")
+    .select("id,text,norm,kind,word_count,author,created_at")
+    .order("created_at",{ascending:false});
+  if (error){ els.potSub.textContent = "Konnte den Topf nicht laden: " + error.message; return; }
+  pool = data || [];
+  render();
+}
+function render(){
+  els.count.textContent = pool.length;
+  const phrases = pool.filter(e=>e.kind==="phrase").length;
+  els.potSub.textContent = pool.length
+    ? `${pool.length - phrases} Wörter, ${phrases} Sätze` : "";
+  els.chips.innerHTML = "";
+  els.empty.hidden = pool.length > 0;
+  for (const e of pool){
+    const li = document.createElement("li");
+    li.className = "chip " + e.kind + (newIds.has(e.id) ? " new" : "");
+    li.textContent = e.text;
+    if (e.author) li.title = "von " + e.author;
+    els.chips.appendChild(li);
+  }
+}
+
+/* ---------- Live-Check ---------- */
+function showCheck(kind, html){ els.check.className = "check show " + kind; els.check.innerHTML = html; }
+function hideCheck(){ els.check.className = "check"; els.check.innerHTML = ""; }
+function list(items){ return "<ul>" + items.slice(0,5).map(e=>`<li>${esc(e.text)}</li>`).join("") + "</ul>"; }
+function esc(s){ return s.replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+let timer;
+els.text.addEventListener("input", ()=>{
+  forceMode = false; els.force.hidden = true; els.toast.className = "toast";
+  clearTimeout(timer);
+  timer = setTimeout(check, 250);
+});
+
+function check(){
+  const raw = els.text.value;
+  const cand = analyze(raw);
+  if (!cand.norm || cand.norm.length < 2){ hideCheck(); els.save.disabled = !configured; return { cand, ok:false }; }
+  const { exact, near } = findMatches(cand, pool);
+  if (exact.length){
+    showCheck("dup", "Gibt's schon:" + list(exact));
+    els.save.disabled = true; els.force.hidden = true;
+    return { cand, ok:false };
+  }
+  if (near.length){
+    showCheck("near", "Klingt ähnlich wie:" + list(near) + "Wenn's wirklich was anderes ist, unten „Trotzdem speichern“.");
+    els.save.disabled = true; els.force.hidden = false;
+    return { cand, ok:false, near };
+  }
+  showCheck("free", cand.kind === "phrase" ? "Noch nicht drin. Geht als Satz rein." : "Noch nicht drin.");
+  els.save.disabled = !configured; els.force.hidden = true;
+  return { cand, ok:true };
+}
+
+/* ---------- Speichern ---------- */
+async function save(cand){
+  const author = els.author.value.trim() || null;
+  try { localStorage.setItem("sb_author", author || ""); } catch(_){}
+  els.save.disabled = true; els.force.disabled = true;
+  const { data, error } = await sb.from("entries")
+    .insert({ text: els.text.value.trim(), norm: cand.norm, word_count: cand.wordCount, kind: cand.kind, author })
+    .select().single();
+  els.force.disabled = false;
+  if (error){
+    if (error.code === "23505"){ await load(); check(); toast("Jemand war schneller, das ist gerade reingekommen."); }
+    else toast("Speichern hat nicht geklappt: " + error.message);
+    return;
+  }
+  newIds = new Set([data.id]);
+  pool.unshift(data); render();
+  els.text.value = ""; hideCheck(); els.force.hidden = true; forceMode = false;
+  toast("Drin. Nächstes?");
+  els.text.focus();
+}
+function toast(msg){ els.toast.textContent = msg; els.toast.className = "toast show"; setTimeout(()=>els.toast.className="toast", 3500); }
+
+els.form.addEventListener("submit", async (ev)=>{
+  ev.preventDefault();
+  if (!sb) return;
+  const r = check();
+  if (r.ok || forceMode) await save(r.cand);
+});
+els.force.addEventListener("click", async ()=>{
+  if (!sb) return;
+  forceMode = true;
+  const r = check();
+  if (r.cand.norm) await save(r.cand);
+});
+
+try { els.author.value = localStorage.getItem("sb_author") || ""; } catch(_){}
+load();
+setInterval(load, 20000);
+</script>
+</body>
+</html>
