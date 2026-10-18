@@ -266,6 +266,7 @@ function stem(w){ return w.replace(/(en|er|es|em|e|n|s)$/,""); }
 function findMatches(cand, pool){
   const exact=[], near=[];
   for (const e of pool){
+    if (!e.words) e.words = e.norm ? e.norm.split(" ").filter(Boolean) : [];
     if (e.norm === cand.norm){ exact.push(e); continue; }
     if (cand.kind === "term" && e.kind === "term"){
       const L = Math.max(cand.norm.length, e.norm.length);
@@ -382,8 +383,10 @@ function toast(msg, sticky){ els.toast.textContent = msg; els.toast.className = 
 els.form.addEventListener("submit", async (ev)=>{
   ev.preventDefault();
   if (!sb) return;
-  const r = check();
-  if (r.ok || forceMode) await save(r.cand);
+  try {
+    const r = check();
+    if (r.ok || forceMode) await save(r.cand);
+  } catch (e) { toast("Da ist was schiefgelaufen: " + (e && e.message || e), true); }
 });
 els.force.addEventListener("click", async ()=>{
   if (!sb) return;
