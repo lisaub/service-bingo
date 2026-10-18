@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Service-Bingo</title>
-<meta name="description" content="Begriffe sammeln für das Service-Bingo am 12. Dezember in Göttingen.">
+<meta name="description" content="Begriffe sammeln für den Bingo-Abend.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..900,100&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -165,7 +165,7 @@
     <div class="ball">B</div><div class="ball">I</div><div class="ball">N</div><div class="ball">G</div><div class="ball">O</div>
   </div>
   <h1>Service-Bingo</h1>
-  <p class="sub">Göttingen, 12. Dezember. Wirf alles in den Topf, was uns damals verfolgt hat: Sprüche, Wörter, Running Gags. Daraus werden am Abend die Bingo-Karten.</p>
+  <p class="sub">Begriffe, Sprüche und Zitate für den Bingo-Abend. Daraus werden die Bingo-Karten.</p>
 
   <div class="setup" id="setup" hidden>
     Noch nicht verbunden. In <code>index.html</code> oben bei <code>CONFIG</code> die Supabase-URL und den anon-Key eintragen (siehe README).
@@ -176,7 +176,7 @@
     <form id="form" novalidate>
       <div class="field">
         <label for="text">Wort, Spruch oder Zitat</label>
-        <input type="text" id="text" name="text" maxlength="120" autocomplete="off" placeholder="Was wurde damals ständig gesagt?" required>
+        <input type="text" id="text" name="text" maxlength="120" autocomplete="off" placeholder="Begriff oder Spruch" required>
         <p class="hint">Einzelne Wörter und ganze Sätze gehen beide. Jeder Eintrag landet als eigenes Bingo-Feld.</p>
         <div class="check" id="check" aria-live="polite"></div>
       </div>
@@ -358,13 +358,16 @@ async function save(cand){
   const author = els.author.value.trim() || null;
   try { localStorage.setItem("sb_author", author || ""); } catch(_){}
   els.save.disabled = true; els.force.disabled = true;
-  const { data, error } = await sb.from("entries")
+  let data, error;
+  try {
+    ({ data, error } = await sb.from("entries")
     .insert({ text: els.text.value.trim(), norm: cand.norm, word_count: cand.wordCount, kind: cand.kind, author })
-    .select().single();
+    .select().single());
+  } catch (e) { error = { message: String(e && e.message || e), code: "network" }; }
   els.force.disabled = false;
   if (error){
     if (error.code === "23505"){ await load(); check(); toast("Jemand war schneller, das ist gerade reingekommen."); }
-    else toast("Speichern hat nicht geklappt: " + error.message);
+    else toast("Speichern hat nicht geklappt: " + error.message + " (" + (error.code||"") + ")", true);
     return;
   }
   newIds = new Set([data.id]);
@@ -373,7 +376,8 @@ async function save(cand){
   toast("Drin. Nächstes?");
   els.text.focus();
 }
-function toast(msg){ els.toast.textContent = msg; els.toast.className = "toast show"; setTimeout(()=>els.toast.className="toast", 3500); }
+let toastTimer;
+function toast(msg, sticky){ els.toast.textContent = msg; els.toast.className = "toast show"; clearTimeout(toastTimer); if (!sticky) toastTimer = setTimeout(()=>els.toast.className="toast", 3500); }
 
 els.form.addEventListener("submit", async (ev)=>{
   ev.preventDefault();
